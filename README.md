@@ -130,6 +130,15 @@ Open termnial and run following commands
  
 ```
 
+## Agent Templates
+- `my_agent.py`: a template file to help you get started with your first Agent
+- `wanderer.py`: a bot that wanders aimlessly around the map
+- `stand_still.py`: a bot that thinks for 1s and does nothing
+- `random_agent.py`: a bot that makes random moves
+- `flee_bot.py`: a bot that places bombs and runs away
+
+The Agents within the folder **Legacy Agents**, are for an older version of Dungeons and Data Structures, available [here](https://colab.research.google.com/drive/1M5-V9GR6FDWA8DrtK31HcHlCaPmw8rA6?usp=sharin
+
 ## Contributions
 As we strive to build AI sport games we welcome all contributions to improve the experience for all participants.
 
