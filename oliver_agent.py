@@ -8,12 +8,14 @@ Reused some methods from CoderOne flee_agent
 
 import time
 import random
-
+import heapq
+import numpy as np
 
 class agent:
 
 	def __init__(self):
-		pass
+		self.map = []
+		self.target = (0, 0)
 
 	def next_move(self, game_state, player_state):
 		"""
@@ -35,16 +37,21 @@ class agent:
 		# for us to refer to later
 		self.game_state = game_state
 		self.location = player_state.location
+		if (not self.map):
+			self.map = [[game_state.entity_at((x, y)) for x in range(self.cols)] for y in range(self.rows)]
+
+		action = ''
 
 		ammo = player_state.ammo
 
-		bombLoc = game_state.bombs
-		ammoLoc = game_state.ammo
-		lootLoc = game_state.treasure
-		softLoc = game_state.soft_blocks
-		oreLoc = game_state.ore_blocks
+		#bombLoc = game_state.bombs
+		#ammoLoc = game_state.ammo
+		#lootLoc = game_state.treasure
+		#softLoc = game_state.soft_blocks
+		#oreLoc = game_state.ore_blocks
 
-		action = ''
+
+
 
 		########################
 		###      AGENT       ###
@@ -56,16 +63,16 @@ class agent:
 
 		# Not safe! Get moving!
 		if not self.is_safe(self.location):
-			# get our surrounding tiles
-			surrounding_tiles = self.get_surrounding_tiles(self.location)
+			# get our neighbour tiles
+			neighbour_tiles = self.get_neighbour_tiles(self.location)
 
 			# get list of tiles to move to
-			move_tiles = self.get_best_tiles(surrounding_tiles)
+			move_tiles = self.get_best_tiles(neighbour_tiles)
 
 			random_tile = random.choice(move_tiles)
 			action = self.move_to_tile(self.location, random_tile)
 		else: # Target nearby pickups and blow up stuff
-			action = ''
+			action = ''#self.move_to_tile(self.location, self.target)
 
 		'''
 		# if I'm on a bomb, I should probably move
@@ -112,23 +119,34 @@ class agent:
 		return action
 
 
-	########################
+	 ######################
 	###     HELPERS      ###
-	########################
+	 ######################
 
 	# returns whether or not there is a bomb in range of the current tile
 	def is_safe(self, tile):
 
 		col = tile[0]
 		row = tile[1]
+		solid_tiles = ['ib', 'sb', 'ob']
 
 		for colRange in range(col-2, col+3):
 			if self.game_state.entity_at((colRange, row)) == 'b':
-				return False
+				if (colRange == col-2) & (self.game_state.entity_at((col-1, row)) in solid_tiles):
+					continue
+				elif (colRange == col+2) & (self.game_state.entity_at((col+1, row)) in solid_tiles):
+					continue
+				else:
+					return False
 
 		for rowRange in range(row - 2, row + 3):
 			if self.game_state.entity_at((col, rowRange)) == 'b':
-				return False
+				if (rowRange == row - 2) & (self.game_state.entity_at((row - 1, col)) in solid_tiles):
+					continue
+				elif (rowRange == row + 2) & (self.game_state.entity_at((row + 1, col)) in solid_tiles):
+					continue
+				else:
+					return False
 
 		return True
 
@@ -136,7 +154,7 @@ class agent:
 	# will return the surrounding tiles up, down, left and to the right as a list
 	# (i.e. [(x1,y1), (x2,y2),...])
 	# as long as they do not cross the edge of the map
-	def get_surrounding_tiles(self, location):
+	def get_neighbour_tiles(self, location):
 
 		# find all the surrounding tiles relative to us
 		# location[0] = col index; location[1] = row index
@@ -155,7 +173,7 @@ class agent:
 		# loop through our tiles
 		for tile in all_surrounding_tiles:
 			# check if the tile is within the boundaries of the game
-			if self.game_state.is_in_bounds(tile):
+			if (self.game_state.is_in_bounds(tile)) & (self.game_state.entity_at(tile) != 'ib'):
 				# if yes, then add them to our list
 				valid_surrounding_tiles.append(tile)
 
@@ -217,7 +235,7 @@ class agent:
 		return action
 
 
-	'''
+
 	# returns the manhattan distance between two tiles, calculated as:
 	# 	|x1 - x2| + |y1 - y2|
 	def manhattan_distance(self, start, end):
@@ -225,7 +243,50 @@ class agent:
 		distance = abs(start[0] - end[0]) + abs(start[1] - end[1])
 
 		return distance
-		
+
+	def astar(array, start, goal):
+
+		neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+		close_set = set()
+		came_from = {}
+		gscore = {start: 0}
+		fscore = {start: heuristic(start, goal)}
+		oheap = []
+
+		heapq.heappush(oheap, (fscore[start], start))
+
+		while oheap:
+			current = heapq.heappop(oheap)[1]
+			if current == goal:
+				data = []
+				while current in came_from:
+					data.append(current)
+					current = came_from[current]
+				return data
+			close_set.add(current)
+
+			for i, j in neighbors:
+				neighbor = current[0] + i, current[1] + j
+				tentative_g_score = gscore[current] + heuristic(current, neighbor)
+				if 0 <= neighbor[0] < array.shape[0]:
+					if 0 <= neighbor[1] < array.shape[1]:
+						if array[neighbor[0]][neighbor[1]] == 1:
+							continue
+					else:
+						# array bound y walls
+						continue
+				else:
+					# array bound x walls
+					continue
+				if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
+					continue
+				if tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1] for i in oheap]:
+					came_from[neighbor] = current
+					gscore[neighbor] = tentative_g_score
+					fscore[neighbor] = tentative_g_score + heuristic(neighbor, goal)
+					heapq.heappush(oheap, (fscore[neighbor], neighbor))
+
+	'''	
 	# given a location as an (x,y) tuple and the bombs on the map
 	# we'll return a list of the bomb positions that are nearby
 	def get_bombs_in_range(self, location, bombs):
